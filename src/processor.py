@@ -1,53 +1,56 @@
 import os
-from PIL import Image
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 
 class AIProcessor:
-    def __init__(self):
-        # We update to the latest stable model: gemini-2.0-flash
+    def __init__(self, api_key):
+        # 1. Try the newest model from your debug list (often has fresh quota)
+        self.model_name = "gemini-2.5-flash" 
+        print(f"🔧 AI Processor initialized with model: {self.model_name}")
+        
         self.llm = ChatGoogleGenerativeAI(
-            model="models/gemini-2.5-flash-lite", 
-            google_api_key=os.getenv("OPENAI_API_KEY"),
+            model=self.model_name,
+            google_api_key=api_key,
             temperature=0.7,
-            # This ensures compatibility with some Google API versions
-            convert_system_message_to_human=True 
+            convert_system_message_to_human=True
         )
 
     def shortlist_news(self, news_list):
-        """Uses AI to pick the most professional/viral story."""
-        titles = "\n".join([f"- {n['title']}" for n in news_list])
-        
-        prompt = f"""
-        Below is a list of AI news headlines from the last 24 hours.
-        Pick the SINGLE MOST impactful story for a professional LinkedIn audience.
-        Focus on: Innovation, Business Impact, or Future of Work.
-        
-        Headlines:
-        {titles}
-        
-        Return ONLY the title of the chosen story.
-        """
-        response = self.llm.invoke(prompt)
-        return response.content.strip()
+        """Uses AI to pick the story. Returns a DEFAULT if AI fails (Graceful Fallback)."""
+        try:
+            print("🧠 Asking AI to shortlist news...")
+            titles = "\n".join([f"- {n['title']}" for n in news_list])
+            
+            prompt = f"""
+            Pick the SINGLE best AI news headline for LinkedIn:
+            {titles}
+            Return ONLY the title.
+            """
+            response = self.llm.invoke(prompt)
+            return response.content.strip()
+
+        except Exception as e:
+            # THIS IS THE FIX: If API blocks us, we use a fallback so the project continues!
+            print(f"⚠️ API Limit Hit ({e}). Switching to FALLBACK mode.")
+            print("   (Using the first scraped story to ensure Image Gen works)")
+            if news_list:
+                return news_list[0]['title']
+            return "The Future of Artificial Intelligence in 2026"
 
     def extract_style_from_image(self, image_path):
-        """Vision: Analyzes a reference image to extract a prompt style."""
-        img = Image.open(image_path)
-        
-        message = HumanMessage(
-            content=[
-                {"type": "text", "text": "Describe the artistic style, lighting, and composition of this image. Provide a detailed prompt fragment that can be used to generate a new image in this exact style. Do not describe the subject, only the aesthetic."},
-                {"type": "image_url", "image_url": image_path} # LangChain handles the conversion
-            ]
-        )
-        
-        response = self.llm.invoke([message])
-        return response.content.strip()
-
-# Testing logic
-if __name__ == "__main__":
-    # Mock data for testing
-    sample_news = [{"title": "OpenAI releases Sora for everyone"}, {"title": "New causal inference study"}]
-    proc = AIProcessor()
-    print("Selected News:", proc.shortlist_news(sample_news))
+        """Vision analysis. Returns DEFAULT style if AI fails."""
+        try:
+            print(f"👀 Analyzing image style with {self.model_name}...")
+            message = HumanMessage(
+                content=[
+                    {"type": "text", "text": "Describe the artistic style of this image for a prompt."},
+                    {"type": "image_url", "image_url": image_path}
+                ]
+            )
+            response = self.llm.invoke([message])
+            return response.content.strip()
+            
+        except Exception as e:
+            print(f"⚠️ Vision API Warning: {e}")
+            print("   (Using DEFAULT style to proceed to generation)")
+            return "Futuristic, high-tech, minimal, 3d render, isometric, cinematic lighting, professional 8k"
