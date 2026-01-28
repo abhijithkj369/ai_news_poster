@@ -1,10 +1,11 @@
 import os
+import base64
+import mimetypes
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 
 class AIProcessor:
     def __init__(self, api_key):
-        # 1. Try the newest model from your debug list (often has fresh quota)
         self.model_name = "gemini-2.5-flash" 
         print(f"🔧 AI Processor initialized with model: {self.model_name}")
         
@@ -16,41 +17,41 @@ class AIProcessor:
         )
 
     def shortlist_news(self, news_list):
-        """Uses AI to pick the story. Returns a DEFAULT if AI fails (Graceful Fallback)."""
         try:
             print("🧠 Asking AI to shortlist news...")
             titles = "\n".join([f"- {n['title']}" for n in news_list])
-            
-            prompt = f"""
-            Pick the SINGLE best AI news headline for LinkedIn:
-            {titles}
-            Return ONLY the title.
-            """
+            prompt = f"Pick the SINGLE best AI news headline for LinkedIn:\n{titles}\nReturn ONLY the title."
             response = self.llm.invoke(prompt)
             return response.content.strip()
-
         except Exception as e:
-            # THIS IS THE FIX: If API blocks us, we use a fallback so the project continues!
-            print(f"⚠️ API Limit Hit ({e}). Switching to FALLBACK mode.")
-            print("   (Using the first scraped story to ensure Image Gen works)")
-            if news_list:
-                return news_list[0]['title']
-            return "The Future of Artificial Intelligence in 2026"
+            print(f"⚠️ Shortlist Error: {e}. Using fallback.")
+            return news_list[0]['title'] if news_list else "AI News of the Day"
 
     def extract_style_from_image(self, image_path):
-        """Vision analysis. Returns DEFAULT style if AI fails."""
         try:
             print(f"👀 Analyzing image style with {self.model_name}...")
+            
+            # --- THE FIX: Convert Image to Base64 ---
+            # 1. Detect file type (jpg, png, etc.)
+            mime_type, _ = mimetypes.guess_type(image_path)
+            if not mime_type: mime_type = "image/jpeg"
+            
+            # 2. Read and Encode
+            with open(image_path, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+            
+            # 3. Create Data URI (The format the API wants)
+            image_data_url = f"data:{mime_type};base64,{encoded_string}"
+            
             message = HumanMessage(
                 content=[
-                    {"type": "text", "text": "Describe the artistic style of this image for a prompt."},
-                    {"type": "image_url", "image_url": image_path}
+                    {"type": "text", "text": "Describe the artistic style, lighting, and composition of this image. Provide a detailed prompt fragment that can be used to generate a new image in this exact style. Do not describe the subject, only the aesthetic."},
+                    {"type": "image_url", "image_url": image_data_url}
                 ]
             )
             response = self.llm.invoke([message])
             return response.content.strip()
             
         except Exception as e:
-            print(f"⚠️ Vision API Warning: {e}")
-            print("   (Using DEFAULT style to proceed to generation)")
+            print(f"⚠️ Vision Error: {e}")
             return "Futuristic, high-tech, minimal, 3d render, isometric, cinematic lighting, professional 8k"
