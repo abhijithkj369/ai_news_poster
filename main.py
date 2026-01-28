@@ -1,36 +1,48 @@
 import os
 from dotenv import load_dotenv
-
-# Import our future modules (We will create these files next)
-# from src import scraper, processor, generator, publisher
+from src.scraper import NewsScraper
+from src.processor import AIProcessor
 
 def main():
-    # 1. Load secret keys
+    # 1. Load configuration and keys
     load_dotenv()
     print("🚀 Initializing AI News Pipeline...")
+    
+    # Initialize our modules
+    scraper = NewsScraper()
+    processor = AIProcessor()
 
     try:
-        # 2. Extraction Phase
-        print("📥 Fetching latest AI trends...")
-        # news_data = scraper.get_reddit_trends("ArtificialInteligence")
+        # 2. Extraction Phase (Scraping)
+        print("📥 Fetching latest AI trends from Medium and Hacker News...")
+        hn_news = scraper.fetch_hacker_news_ai(limit=3)
+        medium_news = scraper.fetch_medium_ai(limit=3)
         
-        # 3. Processing Phase
-        print("🧠 Shortlisting the best story...")
-        # best_story = processor.filter_best_news(news_data)
+        all_news = hn_news + medium_news
         
-        # 4. Image Vision & Generation Phase
-        print("🎨 Generating AI visuals...")
-        # style_prompt = processor.extract_style_from_reference("reference_image.jpg")
-        # image_url = generator.create_ai_image(best_story, style_prompt)
+        if not all_news:
+            print("⚠️ No news found. Check your internet or selectors.")
+            return
+
+        # 3. Processing Phase (Shortlisting)
+        print(f"🧠 Analyzing {len(all_news)} stories to find the best one...")
+        selected_story = processor.shortlist_news(all_news)
         
-        # 5. Posting Phase
-        print("📤 Posting to LinkedIn...")
-        # publisher.post_to_linkedin(best_story, image_url)
-        
-        print("✅ Task Completed Successfully!")
+        print("\n" + "="*30)
+        print(f"🏆 WINNING STORY: {selected_story}")
+        print("="*30 + "\n")
+
+        # 4. Style Extraction (Vision) - We'll assume you have a 'ref.jpg'
+        # To test this, place any image in your root folder named 'reference.jpg'
+        if os.path.exists("reference.jpg"):
+            print("🎨 Extracting style from reference image...")
+            style_prompt = processor.extract_style_from_image("reference.jpg")
+            print(f"✨ Extracted Style: {style_prompt[:100]}...")
+        else:
+            print("💡 No 'reference.jpg' found. Skipping vision step for now.")
 
     except Exception as e:
-        print(f"❌ An error occurred: {e}")
+        print(f"❌ An error occurred in the pipeline: {e}")
 
 if __name__ == "__main__":
     main()

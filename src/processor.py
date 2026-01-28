@@ -4,11 +4,14 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 class AIProcessor:
-    def __init__(self):
-        # We use Gemini 1.5 Flash - it's fast and supports Vision + Text
+    def __init__(self, api_key):
+        # We update to the latest stable model: gemini-2.0-flash
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            model="gemini-2.0-flash", 
+            google_api_key=api_key,
+            temperature=0.7,
+            # This ensures compatibility with some Google API versions
+            convert_system_message_to_human=True 
         )
 
     def shortlist_news(self, news_list):
