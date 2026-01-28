@@ -3,15 +3,16 @@ import base64
 import mimetypes
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
+from config import settings  # <--- IMPORT YOUR SETTINGS
 
 class AIProcessor:
-    def __init__(self, api_key):
-        self.model_name = "gemini-2.5-flash" 
+    def __init__(self):
+        self.model_name = settings.AI_MODEL_NAME
         print(f"🔧 AI Processor initialized with model: {self.model_name}")
         
         self.llm = ChatGoogleGenerativeAI(
             model=self.model_name,
-            google_api_key=api_key,
+            google_api_key=settings.GOOGLE_API_KEY,
             temperature=0.7,
             convert_system_message_to_human=True
         )

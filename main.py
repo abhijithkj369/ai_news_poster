@@ -1,21 +1,15 @@
 import os
-from dotenv import load_dotenv
 from src.scraper import NewsScraper
 from src.processor import AIProcessor
-from src.generator import ImageGenerator  # <--- NEW IMPORT
+from src.generator import ImageGenerator
 
 def main():
-    load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        print("❌ Error: OPENAI_API_KEY not found!")
-        return
-
-    print("🚀 Initializing AI News Pipeline...")
+    print("🚀 Initializing AI News Pipeline (Production Mode)...")
     
+    # We don't need to pass keys anymore! The classes grab them from config.
     scraper = NewsScraper()
-    processor = AIProcessor(api_key=api_key)
-    generator = ImageGenerator() # <--- NEW INITIALIZATION
+    processor = AIProcessor() 
+    generator = ImageGenerator()
 
     try:
         # 1. Scraping

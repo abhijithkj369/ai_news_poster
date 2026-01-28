@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+from config import settings  # <--- IMPORT YOUR SETTINGS
 
 class NewsScraper:
     def __init__(self):
@@ -12,7 +13,7 @@ class NewsScraper:
 
     def fetch_hacker_news_ai(self, limit=5):
         """Scrapes Hacker News for AI-related stories."""
-        url = "https://news.ycombinator.com/list"
+        url = settings.URL_HACKER_NEWS
         print(f"🕵️‍♂️ Scraping Hacker News...")
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
@@ -35,7 +36,7 @@ class NewsScraper:
     def fetch_medium_ai(self, limit=5):
         """Scrapes Medium's 'Artificial Intelligence' tag page."""
         # Using the 'latest' feed for the most recent trends
-        url = "https://medium.com/tag/artificial-intelligence/latest"
+        url = settings.URL_MEDIUM_TAG
         print(f"🕵️‍♂️ Scraping Medium AI Trends...")
         
         try:
