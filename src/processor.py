@@ -4,11 +4,11 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 class AIProcessor:
-    def __init__(self, api_key):
+    def __init__(self):
         # We update to the latest stable model: gemini-2.0-flash
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash", 
-            google_api_key=api_key,
+            model="models/gemini-2.5-flash-lite", 
+            google_api_key=os.getenv("OPENAI_API_KEY"),
             temperature=0.7,
             # This ensures compatibility with some Google API versions
             convert_system_message_to_human=True 
