@@ -4,6 +4,11 @@ from dotenv import load_dotenv
 # Load env variables once here, so other files don't have to
 load_dotenv()
 
+# --- LOCAL HARDWARE CONFIG ---
+DEVICE = "cuda" # Use your A6000
+LLM_MODEL = "llama3.2-vision" # Running via Ollama
+IMAGE_MODEL_PATH = "black-forest-labs/FLUX.1-dev" # State of the art open model
+
 # --- API KEYS ---
 # We use .get() to avoid crashing if a key is missing during imports
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")

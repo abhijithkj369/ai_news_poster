@@ -1,53 +1,48 @@
-import requests
+import torch
+from diffusers import FluxPipeline
+from config import settings
 import time
-import os
 
 class ImageGenerator:
     def __init__(self):
-        # We use a reliable, free inference API for the FLUX model
-        self.base_url = "https://image.pollinations.ai/prompt"
+        print("🔌 Loading Local FLUX Pipeline (This typically takes 30s)...")
+        # Load the model in bfloat16 to save VRAM (even with 48GB, it's faster)
+        self.pipe = FluxPipeline.from_pretrained(
+            settings.IMAGE_MODEL_PATH,
+            torch_dtype=torch.bfloat16
+        )
+        # Move to your GPU
+        self.pipe.to(settings.DEVICE)
+        
+        # Optional: Enable CPU offload if you run other heavy things, 
+        # but with A6000 you probably don't need it.
+        # self.pipe.enable_model_cpu_offload() 
 
     def generate_image(self, news_title, style_prompt):
-        """
-        Combines the News Title + Style Prompt to generate an image.
-        Returns the filename of the saved image.
-        """
-        print("🎨 Constructing image prompt...")
+        print(f"🎨 Generating Image locally on {settings.DEVICE.upper()}...")
         
-        # 1. Create a "Prompt Engineering" structure
-        # We keep the news subject central, but wrap it in the extracted style
-        final_prompt = f"Editorial illustration for news about: {news_title}. {style_prompt}. High quality, trending on artstation, 8k resolution, cinematic lighting."
+        # CHANGED: PROMPT ENGINEERING FOR TEXT
+        # 1. We wrap the title in double quotes which helps Flux understand it's text.
+        # 2. We explicitly ask for "typography" and "poster".
+        prompt = f'A high-quality poster featuring the text "{news_title}" written in large, bold, clear typography. {style_prompt}. High resolution, 8k, cinematic lighting.'
         
-        # URL encode the prompt so it travels safely over the internet
-        encoded_prompt = requests.utils.quote(final_prompt)
+        print(f"   ▶ Prompt: {prompt}") # Print to see what we are sending
         
-        # 2. Build the request URL (using FLUX model for realism)
-        # Random seed ensures we get a new image every time
         seed = int(time.time())
-        image_url = f"{self.base_url}/{encoded_prompt}?width=1280&height=720&model=flux&seed={seed}&nologo=true"
+        generator = torch.Generator("cuda").manual_seed(seed)
         
-        print(f"🖌️  Requesting Image Generation (Model: FLUX)...")
+        image = self.pipe(
+            prompt,
+            output_type="pil",
+            num_inference_steps=30, # Increased slightly for better text sharpness
+            generator=generator,
+            height=720,
+            width=1280,
+            guidance_scale=3.5,
+            max_sequence_length=512 # Flux Dev supports up to 512 tokens (fixes the 77 token warning!)
+        ).images[0]
         
-        try:
-            # 3. Fetch the image bytes
-            response = requests.get(image_url, timeout=30)
-            
-            if response.status_code == 200:
-                # 4. Save to disk
-                filename = f"post_image_{seed}.jpg"
-                with open(filename, 'wb') as f:
-                    f.write(response.content)
-                print(f"✅ Image saved successfully: {filename}")
-                return filename
-            else:
-                print(f"❌ API Error: {response.status_code}")
-                return None
-                
-        except Exception as e:
-            print(f"❌ Generation failed: {e}")
-            return None
-
-# Testing logic
-if __name__ == "__main__":
-    gen = ImageGenerator()
-    gen.generate_image("Artificial General Intelligence is here", "Cyberpunk neon style, dark background, glowing blue circuits")
+        filename = f"local_render_{seed}.jpg"
+        image.save(filename)
+        print(f"✅ Local Image Saved: {filename}")
+        return filename
